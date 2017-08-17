@@ -14,7 +14,7 @@ RUN apt-get -y update --fix-missing && \
     libexpat-dev php5 php-pear php5-pgsql php5-json php-db libapache2-mod-php5 \
     postgresql postgis postgresql-contrib postgresql-9.3-postgis-2.1 \
     postgresql-server-dev-9.3 curl git autoconf-archive cmake python \
-    lua5.1 liblua5.1-dev libluabind-dev \
+    lua5.1 liblua5.1-dev libluabind-dev python-gdal \
     osmosis && \
     apt-get clean && \
     rm -rf /var/lib/apt/lists/* && \
@@ -41,8 +41,12 @@ RUN rm -rf /var/www/html/* && ./src/utils/setup.php --create-website /var/www/ht
 COPY nominatim.conf /etc/apache2/sites-enabled/000-default.conf
 
 # Load initial data
-ENV PBF_DATA http://download.geofabrik.de/europe/monaco-latest.osm.pbf
+ENV PBF_DATA https://s3.amazonaws.com/algorex-working-data/MaineOSMFull.osm.pbf
+ENV TIGER_DATA ftp://ftp2.census.gov/geo/tiger/TGRGDB16/tlgdb_2016_a_23_me.gdb.zip
 RUN curl -L $PBF_DATA --create-dirs -o /app/src/data.osm.pbf
+RUN mkdir /app/src/tiger
+RUN curl -u anonymous:anonymous $TIGER_DATA --create-dirs -o /app/src/tiger/me.gdb.zip
+
 RUN service postgresql start && \
     sudo -u postgres psql postgres -tAc "SELECT 1 FROM pg_roles WHERE rolname='nominatim'" | grep -q 1 || sudo -u postgres createuser -s nominatim && \
     sudo -u postgres psql postgres -tAc "SELECT 1 FROM pg_roles WHERE rolname='www-data'" | grep -q 1 || sudo -u postgres createuser -SDR www-data && \
@@ -50,6 +54,8 @@ RUN service postgresql start && \
     useradd -m -p password1234 nominatim && \
     chown -R nominatim:nominatim ./src && \
     sudo -u nominatim ./src/utils/setup.php --osm-file /app/src/data.osm.pbf --all --threads 2 && \
+    sudo -u nominatim ./src/utils/imports.php --parse-tiger /app/src/tiger/me.gdb.zip && \
+    sudo -u nominatim ./src/utils/setup.php --import-tiger-data && \
     service postgresql stop
 
 EXPOSE 5432
