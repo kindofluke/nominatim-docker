@@ -46,6 +46,8 @@ ENV TIGER_DATA ftp://ftp2.census.gov/geo/tiger/TGRGDB16/tlgdb_2016_a_23_me.gdb.z
 RUN curl -L $PBF_DATA --create-dirs -o /app/src/data.osm.pbf
 RUN mkdir /app/src/tiger
 RUN curl -u anonymous:anonymous $TIGER_DATA --create-dirs -o /app/src/tiger/me.gdb.zip
+RUN curl ftp://anonymous@ftp2.census.gov/geo/tiger/TGRGDB16/tlgdb_2016_a_us_addr.gdb.zip -o /app/src/tiger/us.gdb.zip
+    # Should be edges ftp://anonymous@ftp2.census.gov/geo/tiger/TIGER2016/EDGES/tl_2016_23*
 
 RUN service postgresql start && \
     sudo -u postgres psql postgres -tAc "SELECT 1 FROM pg_roles WHERE rolname='nominatim'" | grep -q 1 || sudo -u postgres createuser -s nominatim && \
